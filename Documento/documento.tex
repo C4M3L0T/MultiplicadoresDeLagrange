@@ -1,0 +1,180 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc}
+
+\title{Multiplicadores de Lagrange aplicados a la Teoría del Consumidor\\
+\large Optimización de presupuesto y diagramas de flujo del programa en C++}
+\author{Angel Manuel Ruvalcaba Garcia}
+\date{\today}
+
+% Estilos para los diagramas de flujo
+\tikzstyle{inicio} = [ellipse, draw, fill=blue!15, minimum width=2.6cm, minimum height=1cm, align=center]
+\tikzstyle{proceso} = [rectangle, draw, fill=orange!15, minimum width=4.6cm, minimum height=1cm, align=center, text width=4.4cm]
+\tikzstyle{decision} = [diamond, draw, fill=yellow!20, minimum width=2.6cm, minimum height=1.4cm, align=center, text width=2.4cm, inner sep=1pt]
+\tikzstyle{entradasalida} = [trapezium, draw, fill=green!15, trapezium left angle=70, trapezium right angle=110, minimum width=3cm, minimum height=1cm, align=center, text width=3cm]
+\tikzstyle{flecha} = [thick, -{Stealth[length=2.5mm]}]
+\tikzstyle{procesoFormula} = [rectangle, draw, fill=orange!15, minimum width=4.6cm, minimum height=1.7cm, align=center, text width=4.4cm]
+
+\begin{document}
+\maketitle
+
+\section{¿Qué es un multiplicador de Lagrange?}
+
+Un multiplicador de Lagrange ($\lambda$) es una variable auxiliar que se introduce para resolver problemas de \textbf{optimización con restricciones}: maximizar (o minimizar) una función sujeta a que las variables cumplan una condición adicional (una igualdad).
+
+En vez de resolver el problema restringido directamente, se construye una nueva función --el \textbf{Lagrangiano}-- que combina la función objetivo y la restricción:
+\[
+L(x_1,\dots,x_n,\lambda) = f(x_1,\dots,x_n) + \lambda \big(c - g(x_1,\dots,x_n)\big)
+\]
+donde $f$ es la función que se quiere optimizar y $g(x_1,\dots,x_n) = c$ es la restricción. El multiplicador $\lambda$ mide la \textbf{sensibilidad del óptimo ante un cambio marginal en la restricción}: cuánto mejora (o empeora) el valor óptimo de $f$ si la restricción se relaja o se aprieta ligeramente.
+
+\subsection{¿Para qué se utiliza?}
+
+Se utiliza siempre que existan dos elementos: algo que se quiere maximizar o minimizar, y un límite (recurso escaso) que no se puede exceder. Ejemplos típicos:
+\begin{itemize}
+    \item Un consumidor que maximiza su utilidad sujeto a un presupuesto limitado (nuestro caso).
+    \item Una empresa que minimiza costos de producción sujeta a producir cierta cantidad.
+    \item Un ingeniero que maximiza la resistencia de una estructura sujeta a un límite de material.
+\end{itemize}
+
+El método convierte un problema restringido en un sistema de ecuaciones (derivadas parciales igualadas a cero) que se puede resolver con álgebra estándar.
+
+\section{Aplicación a la teoría del consumidor}
+
+\subsection{Planteamiento del problema}
+
+Un consumidor quiere maximizar su utilidad $U(x_1,\dots,x_n)$ al consumir $n$ bienes, sujeto a no exceder su ingreso disponible $I$:
+\[
+\text{Maximizar: } U(x_1,\dots,x_n) \qquad
+\text{Sujeto a: } \sum_{i=1}^{n} p_i x_i = I
+\]
+donde $x_i$ es la cantidad consumida del bien $i$, y $p_i$ su precio.
+
+\subsection{El Lagrangiano}
+
+\[
+L(x_1,\dots,x_n,\lambda) = U(x_1,\dots,x_n) + \lambda\left(I - \sum_{i=1}^n p_i x_i\right)
+\]
+
+\subsection{Condiciones de primer orden}
+
+\[
+\frac{\partial L}{\partial x_i} = \frac{\partial U}{\partial x_i} - \lambda p_i = 0 \quad \text{para cada } i
+\qquad
+\frac{\partial L}{\partial \lambda} = I - \sum_i p_i x_i = 0
+\]
+
+De aquí se obtiene la condición de óptimo del consumidor:
+\[
+\frac{\partial U / \partial x_i}{p_i} = \lambda \quad \text{para todo } i
+\]
+Es decir, en el óptimo la utilidad marginal por peso gastado debe ser igual en todos los bienes. $\lambda$ representa la utilidad marginal del ingreso: cuánta utilidad adicional se obtendría con un peso más de presupuesto.
+
+\subsection{Caso Cobb-Douglas: solución cerrada}
+
+Para que el programa en C++ pueda calcular el óptimo sin un método numérico iterativo, se modela la utilidad como Cobb-Douglas generalizada:
+\[
+U(x_1,\dots,x_n) = \prod_{i=1}^{n} x_i^{a_i}, \qquad a_i > 0
+\]
+donde $a_i$ representa el peso o preferencia relativa del bien $i$. Resolviendo el sistema de condiciones de primer orden se llega a la fórmula cerrada que implementa el programa:
+\[
+\boxed{x_i^{*} = \dfrac{a_i}{\sum_{j=1}^n a_j} \cdot \dfrac{I}{p_i}}
+\]
+Esto significa que el gasto óptimo en cada bien es una fracción fija del ingreso, proporcional a su preferencia relativa. El multiplicador se recupera con:
+\[
+\lambda = \frac{a_i \cdot U^{*}}{x_i^{*} \cdot p_i}
+\]
+usando cualquier bien $i$ (el resultado debe ser el mismo, lo que sirve como verificación del cálculo).
+
+\section{Estructuras de datos del programa}
+
+\begin{verbatim}
+struct Bien {
+    string nombre;
+    double precio;         // p_i
+    double preferencia;    // a_i
+    double cantidadOptima; // x_i*
+    double gastoOptimo;    // p_i * x_i*
+};
+
+class ProblemaPresupuesto {
+    vector<Bien> bienes;
+    double ingreso;           // I
+    double sumaPreferencias;  // suma de a_j
+    double lambda;
+    double utilidadOptima;
+
+    void agregarBien(nombre, precio, preferencia);
+    void establecerIngreso(I);
+    void resolver();
+    double calcularUtilidad();
+    double calcularLambda();
+    bool validarRestriccion();
+    void mostrarResultados();
+};
+\end{verbatim}
+
+\section{Diagrama de flujo: \texttt{main()}}
+
+\begin{center}
+\begin{tikzpicture}[font=\footnotesize]
+\node (inicio)   [inicio]        at (0,0)      {Inicio};
+\node (crear)    [proceso]       at (0,-1.4)   {Crear objeto\\\texttt{ProblemaPresupuesto}};
+\node (leern)    [entradasalida] at (0,-2.8)   {Leer $n$\\(número de bienes)};
+\node (decision) [decision]      at (0,-7.2)   {¿Quedan\\bienes por\\leer?};
+\node (leerbien) [entradasalida] at (6,-7.2)   {Leer nombre,\\precio $p_i$,\\preferencia $a_i$};
+\node (agregar)  [proceso]       at (6,-8.8)   {\texttt{agregarBien()}};
+\node (leerI)    [entradasalida] at (0,-11.6)  {Leer ingreso $I$};
+\node (estI)     [proceso]       at (0,-13.0)  {\texttt{establecerIngreso()}};
+\node (resolver) [proceso]       at (0,-14.4)  {\texttt{resolver()}};
+\node (validar)  [proceso]       at (0,-15.8)  {\texttt{validarRestriccion()}};
+\node (mostrar)  [proceso]       at (0,-17.2)  {\texttt{mostrarResultados()}};
+\node (fin)      [inicio]        at (0,-18.6)  {Fin};
+
+\draw [flecha] (inicio) -- (crear);
+\draw [flecha] (crear) -- (leern);
+\draw [flecha] (leern) -- (decision);
+\draw [flecha] (decision) -- node[above] {Sí} (leerbien);
+\draw [flecha] (leerbien) -- (agregar);
+\draw [flecha] (agregar.south) -- (6,-19.8) -- (-2.5,-19.8) -- (-2.5,-7.2) -- (decision.west);
+\draw [flecha] (decision) -- node[left] {No} (leerI);
+\draw [flecha] (leerI) -- (estI);
+\draw [flecha] (estI) -- (resolver);
+\draw [flecha] (resolver) -- (validar);
+\draw [flecha] (validar) -- (mostrar);
+\draw [flecha] (mostrar) -- (fin);
+\end{tikzpicture}
+\end{center}
+
+\section{Diagrama de flujo: \texttt{resolver()}}
+
+\begin{center}
+\begin{tikzpicture}[font=\footnotesize]
+\node (inicio2) [inicio]         at (0,0)     {Inicio\\\texttt{resolver()}};
+\node (suma)    [proceso]        at (0,-1.4)  {\texttt{sumaPreferencias}\\$= \sum_j a_j$};
+\node (loop)    [decision]       at (0,-5.8)  {¿Quedan\\bienes por\\procesar?};
+\node (calcx)   [procesoFormula] at (6.2,-5.8) {$x_i^{*} = \dfrac{a_i}{\sum_j a_j} \cdot \dfrac{I}{p_i}$};
+\node (calcg)   [procesoFormula] at (6.2,-8.0) {$\text{gastoOptimo}_i = p_i \cdot x_i^{*}$};
+\node (util)    [proceso]        at (0,-10.2) {\texttt{calcularUtilidad()}\\$U^{*} = \prod_i (x_i^{*})^{a_i}$};
+\node (lam)     [procesoFormula] at (0,-12.0) {\texttt{calcularLambda()}\\$\lambda = \dfrac{a_i \cdot U^{*}}{x_i^{*}\cdot p_i}$};
+\node (fin2)    [inicio]         at (0,-13.8) {Fin\\\texttt{resolver()}};
+
+\draw [flecha] (inicio2) -- (suma);
+\draw [flecha] (suma) -- (loop);
+\draw [flecha] (loop) -- node[above] {Sí} (calcx);
+\draw [flecha] (calcx) -- (calcg);
+\draw [flecha] (calcg.south) -- (6.2,-15.0) -- (-2.5,-15.0) -- (-2.5,-5.8) -- (loop.west);
+\draw [flecha] (loop) -- node[left] {No} (util);
+\draw [flecha] (util) -- (lam);
+\draw [flecha] (lam) -- (fin2);
+\end{tikzpicture}
+\end{center}
+
+\end{document}

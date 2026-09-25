@@ -108,10 +108,10 @@ int main(){
   int n;
   string nombre;
   double precio, preferencia,ingreso;
-  cout<<"Ingresos:"<<endl;
+  cout<<"Presupuesto:"<<endl;
   cin>>ingreso;
   pp.establecerIngreso(ingreso);
-  cout<<"¿Cuantos productos vas a ingresar"<<endl;
+  cout<<"¿Cuantos productos vas a ingresar?"<<endl;
   cin>>n;
   for(int i = 0;i<n;i++){
     cout<<"**Ingresa el producto**"<<endl;
